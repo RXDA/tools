@@ -2,6 +2,8 @@ package tools
 
 import (
 	"fmt"
+	"github.com/go-courier/geography"
+	"math"
 	"regexp"
 	"strings"
 )
@@ -13,7 +15,7 @@ import (
 // polygon [line,line] -> [[[0,0],[0,2],[2,2],[2,0],[0,0]],[[0,0],[0,1],[1,1],[1,0],[0,0]]] -> POLYGON ((0 0, 0 2, 2 2, 2 0, 0 0), (0 0, 0 1, 1 1, 1 0, 0 0))
 // multiPolygon [polygon,polygon] -> [[[[0,0],[0,1],[1,1],[1,0],[0,0]]],[[[0,0],[0,-1],[-1,-1],[-1,0],[0,0]]]]
 func GisSliceToPostGis(gisStr string) (string, error) {
-	gisStr = strings.ReplaceAll(gisStr," ","")
+	gisStr = strings.ReplaceAll(gisStr, " ", "")
 	if len(gisStr) < 5 {
 		return "", nil
 	}
@@ -44,7 +46,7 @@ func GisSliceToPostGis(gisStr string) (string, error) {
 		gisStr = string(bs[1 : len(bs)-1])
 	}
 
-	pointReg, err := regexp.Compile(`\[(\d+\.*\d*)\s*,\s*(\d+\.*\d*)]`)
+	pointReg, err := regexp.Compile(`\[(\d+\.*\d{7})\d*\s*,\s*(\d+\.*\d{7})\d*]`)
 	if err != nil {
 		return "", err
 	}
@@ -55,4 +57,88 @@ func GisSliceToPostGis(gisStr string) (string, error) {
 	replacedPoint = replacer.Replace(replacedPoint)
 
 	return fmt.Sprintf("%s(%s)", geomType, replacedPoint), nil
+}
+
+func maxAndMin(fs ...float64) (max, min float64) {
+	maxF := -math.MaxFloat64
+	minF := math.MaxFloat64
+	for _, v := range fs {
+		if v > maxF {
+			maxF = v
+		}
+		if v < minF {
+			minF = v
+		}
+	}
+	return maxF, minF
+}
+
+func GetPolygonBoxAndCenter(p geography.Polygon) ([5][2]float64, [2]float64) {
+	maxX := -math.MaxFloat64
+	minX := math.MaxFloat64
+	maxY := -math.MaxFloat64
+	minY := math.MaxFloat64
+	for _, l := range p {
+		for _, p := range l {
+			if p.X() > maxX {
+				maxX = p.X()
+			}
+			if p.X() < minX {
+				minX = p.X()
+			}
+			if p.Y() > maxY {
+				maxY = p.Y()
+			}
+			if p.Y() < minY {
+				minY = p.Y()
+			}
+		}
+	}
+	// box 从左下角开始，逆时针
+	box := [5][2]float64{
+		{minX, minY},
+		{maxX, minY},
+		{maxX, maxY},
+		{minX, maxY},
+		{minX, minY},
+	}
+	center := [2]float64{(minX + maxX) / 2, (minY + maxY) / 2}
+	return box, center
+}
+
+func GetMultiPolygonBoxAndCenter(mp geography.MultiPolygon) ([][5][2]float64, [2]float64) {
+	mp.Bound().AsPolygon()
+	maxX := -math.MaxFloat64
+	minX := math.MaxFloat64
+	maxY := -math.MaxFloat64
+	minY := math.MaxFloat64
+	for _, p := range mp {
+		for _, l := range p {
+			for _, p := range l {
+				if p.X() > maxX {
+					maxX = p.X()
+				}
+				if p.X() < minX {
+					minX = p.X()
+				}
+				if p.Y() > maxY {
+					maxY = p.Y()
+				}
+				if p.Y() < minY {
+					minY = p.Y()
+				}
+			}
+		}
+	}
+
+	// box 从左下角开始，逆时针
+	box := [][5][2]float64{{
+		{minX, minY},
+		{maxX, minY},
+		{maxX, maxY},
+		{minX, maxY},
+		{minX, minY},
+	}}
+	center := [2]float64{(minX + maxX) / 2, (minY + maxY) / 2}
+	return box, center
 }
