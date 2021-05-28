@@ -5,6 +5,7 @@ import (
 	"math"
 )
 
+// GetCenterAndAngle 标准直角坐标系角度
 func GetCenterAndAngle(lineString [2]geography.Point) (geography.Point, float64) {
 	center := geography.Point{(lineString[0].X() + lineString[1].X()) / 2, (lineString[0].Y() + lineString[1].Y()) / 2}
 
@@ -20,15 +21,12 @@ func GetCenterAndAngle(lineString [2]geography.Point) (geography.Point, float64)
 	k := dy / dx
 	angle := 180 * math.Atan(k) / math.Pi
 	switch quadrant(lineString) {
-	case 2:
+	case 2,3:
 		angle += 180
-	case 3:
-		angle = angle + 180
 	case 4:
 		angle += 360
 	}
 
-	//fmt.Println(dx, dy, angle, quadrant(lineString))
 	return center, angle
 }
 
