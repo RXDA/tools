@@ -46,7 +46,7 @@ func GisSliceToPostGis(gisStr string) (string, error) {
 		gisStr = string(bs[1 : len(bs)-1])
 	}
 
-	pointReg, err := regexp.Compile(`\[(\d+\.*\d{7})\d*\s*,\s*(\d+\.*\d{7})\d*]`)
+	pointReg, err := regexp.Compile(`\[(\d+\.*\d{0,7})\d*\s*,\s*(\d+\.*\d{0,7})\d*]`)
 	if err != nil {
 		return "", err
 	}
@@ -73,7 +73,7 @@ func maxAndMin(fs ...float64) (max, min float64) {
 	return maxF, minF
 }
 
-func GetPolygonBoxAndCenter(p geography.Polygon) ([5][2]float64, [2]float64) {
+func GetPolygonBoxAndCenter(p geography.Polygon) ([][2]float64, [2]float64) {
 	maxX := -math.MaxFloat64
 	minX := math.MaxFloat64
 	maxY := -math.MaxFloat64
@@ -95,7 +95,7 @@ func GetPolygonBoxAndCenter(p geography.Polygon) ([5][2]float64, [2]float64) {
 		}
 	}
 	// box 从左下角开始，逆时针
-	box := [5][2]float64{
+	box := [][2]float64{
 		{minX, minY},
 		{maxX, minY},
 		{maxX, maxY},
@@ -106,8 +106,7 @@ func GetPolygonBoxAndCenter(p geography.Polygon) ([5][2]float64, [2]float64) {
 	return box, center
 }
 
-func GetMultiPolygonBoxAndCenter(mp geography.MultiPolygon) ([][5][2]float64, [2]float64) {
-	mp.Bound().AsPolygon()
+func GetMultiPolygonBoxAndCenter(mp geography.MultiPolygon) ([5][2]float64, [2]float64) {
 	maxX := -math.MaxFloat64
 	minX := math.MaxFloat64
 	maxY := -math.MaxFloat64
@@ -132,13 +131,27 @@ func GetMultiPolygonBoxAndCenter(mp geography.MultiPolygon) ([][5][2]float64, [2
 	}
 
 	// box 从左下角开始，逆时针
-	box := [][5][2]float64{{
+	box := [5][2]float64{
 		{minX, minY},
 		{maxX, minY},
 		{maxX, maxY},
 		{minX, maxY},
 		{minX, minY},
-	}}
+	}
 	center := [2]float64{(minX + maxX) / 2, (minY + maxY) / 2}
 	return box, center
+}
+
+
+func GetMultiPolygonBoxAndCenterFromGeo(mp geography.MultiPolygon) ([][2]float64, [2]float64) {
+	box := mp.Bound().AsPolygon()
+	center := mp.Bound().Center()
+	boxResult := [][2]float64{
+		(*box)[0][0],
+		(*box)[0][1],
+		(*box)[0][2],
+		(*box)[0][3],
+		(*box)[0][4],
+	}
+	return boxResult, center
 }

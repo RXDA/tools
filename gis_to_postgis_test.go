@@ -1,6 +1,9 @@
 package tools
 
 import (
+	"encoding/json"
+	"github.com/go-courier/geography"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -48,9 +51,47 @@ func TestGisToPostGis(t *testing.T) {
 				t.Errorf("GisToPostGis() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			tt.want = strings.ReplaceAll(tt.want,", ",",")
+			tt.want = strings.ReplaceAll(tt.want, ", ", ",")
 			if got != tt.want {
 				t.Errorf("GisToPostGis() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetMultiPolygonBoxAndCenter(t *testing.T) {
+	mp1Str := "[[[[0,0],[5,0],[5,5],[0,5],[0,0]]],[[[6,6],[7,6],[7,7],[6,7],[6,6]]]]" // 两个不相邻的正方形
+	var mp1 geography.MultiPolygon
+	err := json.Unmarshal([]byte(mp1Str), &mp1)
+	if err != nil {
+		panic(err)
+	}
+	type args struct {
+		mp geography.MultiPolygon
+	}
+	tests := []struct {
+		name  string
+		args  args
+		want  [][2]float64
+		want1 [2]float64
+	}{
+		{
+			name: "1",
+			args: args{
+				mp: mp1,
+			},
+			want:  [][2]float64{{0, 0}, {7, 0}, {7, 7}, {0, 7}, {0, 0}},
+			want1: [2]float64{3.5, 3.5},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, got1 := GetMultiPolygonBoxAndCenterFromGeo(tt.args.mp)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetMultiPolygonBoxAndCenter() got = %v, want %v", got, tt.want)
+			}
+			if !reflect.DeepEqual(got1, tt.want1) {
+				t.Errorf("GetMultiPolygonBoxAndCenter() got1 = %v, want %v", got1, tt.want1)
 			}
 		})
 	}
